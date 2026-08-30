@@ -1,0 +1,79 @@
+Redux Store Explained
+What is a Redux Store?
+A Redux Store is the central container that holds all the application state in a Redux app. It's a single source of truth for your entire application's data.
+
+Think of it like a database for your frontend — it holds all the data your app needs to work with.
+
+Your Store Setup (src/app/store.ts)
+
+export const store = configureStore({
+  reducer: {
+    [studentsApiSlice.reducerPath]: studentsApiSlice.reducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(studentsApiSlice.middleware),
+})
+Here's what's happening:
+
+Concept	Explanation
+configureStore	Redux Toolkit function that creates the store (replaces older createStore)
+reducer	Functions that determine how state changes in response to actions
+middleware	Extends store capabilities (e.g., for async API calls)
+Core Store Methods
+The store provides 4 main methods:
+
+
+// 1. Get current state
+store.getState() → returns the entire state tree
+
+// 2. Update state (the ONLY way to change state)
+store.dispatch(action) → sends an action to update state
+
+// 3. Listen for changes
+store.subscribe(listener) → runs a function whenever state changes
+
+// 4. Replace a reducer
+store.replaceReducer(nextReducer) → for code-splitting/hot reloading
+How State Flows in Redux
+
+Component → dispatch(action) → Store → Reducer → New State → Component re-renders
+Component dispatches an action (e.g., "ADD_STUDENT")
+Store passes it to the reducer
+Reducer returns new state based on the action
+Store updates and notifies all subscribers
+Components connected to that state re-render
+Two Important Derived Types in Your Code
+
+// Used for reading state
+export type RootState = ReturnType<typeof store.getState>
+
+// Used for dispatching actions
+export type AppDispatch = typeof store.dispatch
+These are used in your typed hooks (src/app/hooks.ts):
+
+
+export const useAppDispatch: () => AppDispatch = useDispatch
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
+This gives you TypeScript autocompletion and type safety when:
+
+Selecting data from the store → useAppSelector(state => state...)
+Dispatching actions → useAppDispatch()
+The Provider (src/main.tsx)
+
+<Provider store={store}>
+  <App />
+</Provider>
+The Provider makes the store available to all components in the component tree via React Context. Without it, useSelector and useDispatch wouldn't work.
+
+Summary
+Term	Purpose
+Store	Holds all application state
+Reducer	Pure function: (state, action) => newState
+Action	Plain object describing what happened {type: 'ADD', payload: ...}
+Dispatch	Sends an action to the store to update state
+Provider	React component that makes store available to children
+useSelector	Hook to read data from the store
+useDispatch	Hook to send actions to the store
+The Redux Store follows a strict rule: state is read-only — the only way to change it is by dispatching an action. This makes state changes predictable and traceable.
+
+
