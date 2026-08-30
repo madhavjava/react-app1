@@ -1,1 +1,148 @@
 
+RTK Query Cache Explained
+RTK Query is the data fetching and caching tool included in Redux Toolkit. Here's how its caching works:
+
+Core Concepts
+1. Cache Lifetime
+Data is cached based on cache keys (the endpoint name + arguments)
+Cache entries remain for a configurable time after the last subscriber unsubmits
+Default cache lifetime: 60 seconds after all subscribers remove
+2. Cache Keys
+Every query is identified by a unique cache key:
+
+
+// Example: getUserById(5) creates cache key "getUserById(5)"
+const { data } = useGetUserByIdQuery(5);
+3. How Caching Works
+
+Component Mounts → Query Fetches Data → Data Stored in Cache
+     ↓
+Component Unmounts → Cache Timer Starts (default 60s)
+     ↓
+Component Remounts → If cache valid → Return cached data (no refetch)
+     ↓
+Cache Expires → Data Removed → Next mount triggers fresh fetch
+Cache Configuration Options
+keepUnusedDataFor (Global Default)
+
+// In API definition
+const api = createApi({
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  keepUnusedDataFor: 300, // 5 minutes instead of default 60s
+  endpoints: (builder) => ({
+    // ...
+  }),
+});
+keepUnusedDataFor (Per Endpoint)
+
+const api = createApi({
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  endpoints: (builder) => ({
+    getUsers: builder.query({
+      query: () => '/users',
+      keepUnusedDataFor: 3600, // 1 hour for this endpoint
+    }),
+    getPosts: builder.query({
+      query: () => '/posts',
+      keepUnusedDataFor: 30, // 30 seconds for this endpoint
+    }),
+  }),
+});
+Cache Invalidation with Tags
+Providing Tags (from queries)
+
+const api = createApi({
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  tagTypes: ['User', 'Post'],
+  endpoints: (builder) => ({
+    getUsers: builder.query({
+      query: () => '/users',
+      providesTags: ['User'], // This query provides 'User' tag
+    }),
+    getUserById: builder.query({
+      query: (id) => `/users/${id}`,
+      providesTags: (result, error, id) => [{ type: 'User', id }],
+    }),
+  }),
+});
+Invalidating Tags (from mutations)
+
+const api = createApi({
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  tagTypes: ['User', 'Post'],
+  endpoints: (builder) => ({
+    updateUser: builder.mutation({
+      query: (user) => ({
+        url: `/users/${user.id}`,
+        method: 'PUT',
+        body: user,
+      }),
+      invalidatesTags: ['User'], // Invalidates all 'User' tagged queries
+    }),
+    addPost: builder.mutation({
+      query: (post) => ({
+        url: '/posts',
+        method: 'POST',
+        body: post,
+      }),
+      invalidatesTags: ['Post'],
+    }),
+  }),
+});
+Cache Behavior Scenarios
+Scenario 1: Same Query, Multiple Components
+
+// Component A
+const { data } = useGetUsersQuery();
+
+// Component B (mounted later)
+const { data } = useGetUsersQuery(); // Uses same cache, no refetch
+Scenario 2: Different Arguments = Different Cache
+
+const { data: user1 } = useGetUserByIdQuery(1); // Cache key: "getUserById(1)"
+const { data: user2 } = useGetUserByIdQuery(2); // Cache key: "getUserById(2)"
+Scenario 3: Force Refetch
+
+const { data, refetch } = useGetUsersQuery();
+
+// Force refetch even if cache is valid
+<button onClick={refetch}>Refresh</button>
+Cache State in Redux Store
+
+{
+  api: {
+    queries: {
+      'getUserById(1)': {
+        status: 'fulfilled',
+        data: { id: 1, name: 'John' },
+        fulfilledTimeStamp: 1693353600000,
+        // ...
+      }
+    },
+    mutations: {},
+    provided: {
+      User: ['getUserById(1)', 'getUserById(2)']
+    },
+    subscriptions: {
+      'getUserById(1)': {
+        // subscriber count
+      }
+    }
+  }
+}
+Cache Lifecycle Summary
+Event	Cache Behavior
+Query executed	Data stored in cache
+Component unmounts	Cache timer starts
+Component remounts (cache valid)	Returns cached data
+Component remounts (cache expired)	Fetches fresh data
+Mutation with invalidating tag	Cache marked stale, refetch triggered
+refetch() called	Force refetch regardless of cache state
+Key Takeaways
+Cache is automatic - No manual cache management needed
+Cache keys are unique - Based on endpoint + arguments
+Tags control invalidation - Mutations invalidate queries via tags
+Configurable lifetime - keepUnusedDataFor controls how long data stays
+Subscribers matter - Cache is cleared only after ALL subscribers unmount + timer expires
+Would you like me to dive deeper into any specific aspect of RTK Query caching?
+
