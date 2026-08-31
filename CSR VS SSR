@@ -1,0 +1,230 @@
+CSR vs SSR: Complete Guide
+CSR - Client-Side Rendering 🌐
+Definition: The browser downloads a minimal HTML file and JavaScript bundle, then React renders the entire UI in the browser.
+
+How CSR Works
+
+1. Browser requests page from server
+2. Server returns minimal HTML + JS bundle
+3. Browser downloads and executes JavaScript
+4. React builds the UI in the browser
+5. Page becomes interactive
+CSR Example (Traditional React App)
+
+// index.html - What server sends
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="/bundle.js"></script>
+  </body>
+</html>
+
+// React takes over in the browser
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+CSR Flow Diagram
+
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│   Browser   │ ──────► │   Server    │ ──────► │   Browser   │
+│             │ Request │             │ Empty   │             │
+│             │         │             │ HTML+JS │             │
+└─────────────┘         └─────────────┘         └─────────────┘
+                                                      │
+                                                      ▼
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│ Interactive │ ◄────── │   React     │ ◄────── │  Downloads  │
+│    Page     │ Render  │   Builds UI │   JS    │    JS       │
+└─────────────┘         └─────────────┘         └─────────────┘
+SSR - Server-Side Rendering 🖥️
+Definition: The server renders React components into HTML, sends fully-rendered HTML to the browser, then React "hydrates" it to make it interactive.
+
+How SSR Works
+
+1. Browser requests page from server
+2. Server renders React components to HTML
+3. Server sends fully-rendered HTML
+4. Browser displays HTML immediately
+5. Browser downloads JavaScript
+6. React hydrates the HTML (attaches event handlers)
+7. Page becomes interactive
+SSR Example (Next.js Pages Router)
+
+// pages/index.js
+export default function Home({ data }) {
+  // This runs on the SERVER first
+  console.log('Rendering on server...');
+  
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <p>Data: {data}</p>
+    </div>
+  );
+}
+
+// This function runs on the SERVER before page is sent
+export async function getServerSideProps() {
+  const res = await fetch('https://api.example.com/data');
+  const data = await res.json();
+  
+  return {
+    props: { data }, // Passed to component as props
+  };
+}
+SSR Flow Diagram
+
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│   Browser   │ ──────► │   Server    │ ──────► │   Browser   │
+│             │ Request │             │ Full    │             │
+│             │         │ React renders│ HTML   │ Shows HTML  │
+└─────────────┘         │ to HTML     │         │ immediately │
+                        └─────────────┘         └─────────────┘
+                                                      │
+                                                      ▼
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│ Interactive │ ◄────── │   React     │ ◄────── │  Downloads  │
+│    Page     │Hydrate  │  Hydrates   │   JS    │    JS       │
+└─────────────┘         └─────────────┘         └─────────────┘
+Detailed Comparison
+Rendering Location
+Aspect	CSR	SSR
+Where UI is built	Browser	Server
+Initial HTML	Empty <div>	Fully rendered
+JavaScript required	Yes, for anything to show	Yes, for interactivity
+Performance Comparison
+
+CSR Timeline:
+[Request] → [Download JS] → [Execute JS] → [Render UI] → [Interactive]
+    ↑           ↑               ↑             ↑            ↑
+  100ms       500ms           200ms         100ms        Total: 900ms
+
+SSR Timeline:
+[Request] → [Server Renders] → [HTML Arrives] → [Display] → [Hydrate] → [Interactive]
+    ↑            ↑                  ↑            ↑          ↑           ↑
+  100ms        200ms              100ms        50ms       200ms      Total: 650ms
+Code Examples
+CSR Example (Create React App)
+
+// App.js
+import React, { useState, useEffect } from 'react';
+
+function App() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch happens in BROWSER
+    fetch('/api/users')
+      .then(res => res.json())
+      .then(data => {
+        setUsers(data);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div>Loading...</div>; // Shows in browser
+
+  return (
+    <ul>
+      {users.map(user => <li key={user.id}>{user.name}</li>)}
+    </ul>
+  );
+}
+
+export default App;
+SSR Example (Next.js)
+
+// pages/users.js
+function Users({ users }) {
+  // No loading state needed - data already here!
+  return (
+    <ul>
+      {users.map(user => <li key={user.id}>{user.name}</li>)}
+    </ul>
+  );
+}
+
+export async function getServerSideProps() {
+  // Fetch happens on SERVER
+  const res = await fetch('https://api.example.com/users');
+  const users = await res.json();
+
+  return { props: { users } };
+}
+
+export default Users;
+Pros and Cons
+CSR Pros ✅
+Cheaper hosting - Just static files (CDN)
+Rich interactions - Smooth SPA experience
+Less server load - Server just serves files
+Easy deployment - Deploy anywhere (Netlify, Vercel, S3)
+CSR Cons ❌
+Slower initial load - Wait for JS to download
+Poor SEO - Search engines see empty HTML
+Blank page - No content until JS loads
+Bad on slow devices - Heavy processing in browser
+SSR Pros ✅
+Faster initial paint - HTML shows immediately
+Better SEO - Search engines see full content
+Better performance on slow devices - Server does heavy lifting
+Social media previews - Meta tags are rendered
+SSR Cons ❌
+Expensive hosting - Needs Node.js server
+More server load - Renders on every request
+Slower navigation - Full page reloads (traditional SSR)
+Complex setup - More infrastructure needed
+Other Rendering Strategies
+SSG - Static Site Generation
+
+// Next.js - Build-time rendering
+export async function getStaticProps() {
+  // Runs at BUILD TIME, not request time
+  const data = await fetchData();
+  return { props: { data } };
+}
+ISR - Incremental Static Regeneration
+
+// Next.js - Static with periodic updates
+export async function getStaticProps() {
+  const data = await fetchData();
+  return {
+    props: { data },
+    revalidate: 60, // Regenerate every 60 seconds
+  };
+}
+React Server Components (RSC)
+
+// Server Component - No JavaScript sent to browser
+async function ServerComponent() {
+  const data = await db.query('SELECT * FROM users');
+  return <div>{data}</div>; // Rendered on server, HTML only sent
+}
+When to Use What?
+Use CSR when:
+Building dashboards/admin panels
+Behind login (no SEO needed)
+Heavy interactive applications
+Budget constraints (cheaper hosting)
+Use SSR when:
+Public-facing content (blogs, e-commerce)
+SEO is critical
+Social media sharing matters
+First contentful paint is priority
+Use SSG when:
+Content doesn't change often
+Maximum performance needed
+Marketing pages, documentation
+Modern Approach: Hybrid Rendering
+
+// Next.js App Router - Mix of all strategies
+// app/page.js - Server Component (SSR)
+import { Suspense } from 'react';
